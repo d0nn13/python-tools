@@ -30,9 +30,17 @@ class RS485Monitor:
         system('clear')
         print "Monitor started : Baudrate=" + str(self._d.baudrate)
         out = Unbuffered(stdout)
+        d = ''
+        for i in range(128):
+            d += ' '
+
         while (1):
             try:
-                out.write('[' + self._d.read(128) + ']\r')
+                d = self._d.read(128)
+                for i in range (150):
+                    out.write(' ')
+                out.write('\r')
+                out.write('[' + d + '] (' + str(len(d)) + ')\r')
             except FtdiError as e:
                 print 'Exception caught : ' + e.args[0]
                 print 'Exiting monitor'
@@ -44,4 +52,3 @@ class RS485Monitor:
 if __name__ == "__main__":
     mon = RS485Monitor()
     mon.run()
-
