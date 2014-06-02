@@ -32,7 +32,7 @@ class RS485Monitor:
         out = Unbuffered(stdout)
         while (1):
             try:
-                out.write('[' + self._d.read(32) + ']\r')
+                out.write('[' + self._d.read(128) + ']\r')
             except FtdiError as e:
                 print 'Exception caught : ' + e.args[0]
                 print 'Exiting monitor' 
