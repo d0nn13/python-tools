@@ -35,10 +35,10 @@ class RS485Monitor:
                 out.write('[' + self._d.read(128) + ']\r')
             except FtdiError as e:
                 print 'Exception caught : ' + e.args[0]
-                print 'Exiting monitor' 
+                print 'Exiting monitor'
                 exit(1)
             except KeyboardInterrupt:
-               print '\r\nExiting monitor' 
+               print '\r\nExiting monitor'
                exit(0)
 
 if __name__ == "__main__":
