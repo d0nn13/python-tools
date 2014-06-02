@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from pylibftdi import Device, FtdiError
 from sys import stdout, exit
+from os import system
 
 '''
 Wraps a stream object into an auto-flushing one
@@ -26,6 +27,7 @@ class RS485Monitor:
         self._d.flush()
 
     def run(self):
+        system('clear')
         print "Monitor started : Baudrate=" + str(self._d.baudrate)
         out = Unbuffered(stdout)
         while (1):
