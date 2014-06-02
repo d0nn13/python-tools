@@ -25,8 +25,12 @@ class SPITransmitter:
                self._m.Close()
                exit(0)
             except Exception as e:
+                if (e.args[0] == 'all fine'):
+                    print "Exception caught : Couldn't read from device"
+                    print "Exiting transmitter"
+                else:
+                    raise e
                 self._m.Close()
-                raise e
                 exit(1)
 
 if __name__ == "__main__":
