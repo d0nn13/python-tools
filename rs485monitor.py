@@ -30,7 +30,7 @@ class RS485Monitor:
         self._raw = False
 
     def raw(self):
-        self._out.write(self._d.read(1))
+        self._out.write(self._d.read(256))
 
     def normal(self):
         d = self._d.read(128)
