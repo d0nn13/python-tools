@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from mpsse import *
-from sys import stdin, exit
+from sys import stdout, exit
 from time import sleep
 import argparse
 
@@ -16,7 +16,9 @@ class SPITransmitter:
             exit(0)
 
     def run(self):
-        print "Transmitter started : Mode = " + str(self._mode) + "  |  Frequency = " + str(self._m.GetClock()) + " Hz"
+        stdout.write('Transmitter started : Mode = SPI' + str(self._mode))
+        stdout.write('  |  Frequency = ' + str(self._m.GetClock()) + ' Hz')
+        stdout.write('  |  Pause = ' + str(self._pause) + ' s\n')
         a = ord('A')
         s = 1
         while (1):
