@@ -5,29 +5,33 @@ from time import sleep
 import argparse
 
 class SPITransmitter:
-    def __init__(self, mode, freq):
-        self._usermode = mode
-        self._userfreq = freq
+    def __init__(self, mode, freq, pause):
+        self._mode = mode
+        self._freq = freq
+        self._pause = pause
         try:
-            self._m = MPSSE(mode, freq)
+            self._m = MPSSE(self._mode + 1, self._freq)
         except Exception as e:
             print '\rCould not start FTDI Device : ' + e.args[0]
             exit(0)
 
     def run(self):
-        print "Transmitter started : Mode=" + str(self._usermode) + " | Frequency=" + str(self._m.GetClock())
+        print "Transmitter started : Mode = " + str(self._mode) + "  |  Frequency = " + str(self._m.GetClock()) + " Hz"
         a = ord('A')
         s = 1
         while (1):
             try:
+
+                if (((chr(a) >= 'z') and (s == 1)) or ((chr(a) <= 'A') and (s == -1))):
+                    a -= s
+                    s = -s
+                    sleep(self._pause)
                 self._m.Start()
                 self._m.Write(chr(a))
                 self._m.Write(chr(a + s))
                 self._m.Stop()
                 a += s * 2
-                if (((chr(a) >= 'y') and (s == 1)) or ((chr(a) <= 'b') and (s == -1))):
-                    s = -s
-                    sleep(1)
+
             except KeyboardInterrupt:
                print '\r\nExiting transmitter'
                self._m.Close()
@@ -45,12 +49,17 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description='Transmit characters on FTDI SPI.')
     p.add_argument('-m', '--mode',
                     type=int,
-                    choices=[SPI0, SPI1, SPI2, SPI3],
-                    default=SPI0,
+                    choices=[0, 1, 2, 3],
+                    default=0,
                     help='SPI Mode (see pylibmpsse doc for further info)')
     p.add_argument('-f', '--frequency',
                     type=int,
-                    default='460000')
+                    default='460000',
+                    help='Clock frequency in Hz')
+    p.add_argument('-p', '--pause',
+                    type=int,
+                    default='1',
+                    help='Pause time between two frames in seconds')
     args = p.parse_args()
-    t = SPITransmitter(args.mode, args.frequency)
+    t = SPITransmitter(args.mode, args.frequency, args.pause)
     t.run()
