@@ -2,19 +2,9 @@
 from pylibftdi import Device, FtdiError
 from sys import stdout, exit
 from os import system
+from UnbufferedStreamWrapper import *
 import argparse
 
-'''
-Wraps a stream object into an auto-flushing one
-'''
-class Unbuffered(object):
-    def __init__(self, stream):
-        self.stream = stream
-    def write(self, data):
-        self.stream.write(data)
-        self.stream.flush()
-    def __getattr__(self, attr):
-        return getattr(self.stream, attr)
 
 class RS485Monitor:
     def __init__(self, baudrate = 1250000, databits = 8, stopbits = 0, paritymode = 2):
@@ -26,7 +16,7 @@ class RS485Monitor:
         self._d.baudrate = baudrate
         self._d.ftdi_fn.ftdi_set_line_property(databits, stopbits, paritymode)
         self._d.flush()
-        self._out = Unbuffered(stdout)
+        self._out = UnbufferedStreamWrapper(stdout)
         self._raw = False
 
     def raw(self):

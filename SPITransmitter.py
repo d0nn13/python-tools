@@ -28,9 +28,9 @@ class SPITransmitter:
                     a -= s
                     s = -s
                     sleep(self._pause)
+                w = str(chr(a) + chr(a + s))
                 self._m.Start()
-                self._m.Write(chr(a))
-                self._m.Write(chr(a + s))
+                self._m.Write(w)
                 self._m.Stop()
                 a += s * 2
 
