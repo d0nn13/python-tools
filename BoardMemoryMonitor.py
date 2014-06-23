@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 from naoqi import ALBroker, ALProxy
 from sys import stdout, exit
+from os import system
+from re import compile, search
 from UnbufferedStreamWrapper import *
 import argparse
 
@@ -9,29 +11,39 @@ class BoardMemoryMonitor:
     def __init__(self, args):
         try:
             self._mem = ALProxy('ALMemory', args.url, args.port)
+            self._out = UnbufferedStreamWrapper(stdout)
+            self._prefix = 'Device/DeviceList'
+            self._board = args.board
+            self._key = args.key
+        except RuntimeError as e:
+            exceptRgx = compile('[^\n\t]+$')
+            print '\n', 'RuntimeError:', exceptRgx.search(e.args[0]).group(0)
+            exit(1)
         except Exception as e:
             print e
             exit(1)
-        self._prefix = 'Device/DeviceList'
-        self._board = args.board
-        self._key = args.key
-        self._out = UnbufferedStreamWrapper(stdout)
 
 
     def run(self):
-        progVersion = self._mem.getData('/'.join([self._prefix, self._board, 'ProgVersion']))
-        print '\nMonitoring key \'' + self._key + '\' on board \'' + self._board + '\' [ProgVersion: ' + str(progVersion) + ']'
-
         try:
+            progVersion = self._mem.getData('/'.join([self._prefix,
+                                                    self._board,
+                                                    'ProgVersion']))
+            system('clear')
+            print 'Monitoring key \'{0}\' on board \'{1}\' [ProgVersion: {2}]'.format(self._key,
+                                                                                    self._board,
+                                                                                    str(progVersion))
             while True:
                 data = self._mem.getData('/'.join([self._prefix, self._board, self._key]))
                 self._out.write(str(data))
                 self._out.write('   \r')
-        except RuntimeError as e:
-            print e
         except KeyboardInterrupt:
-           print '\r\nExiting monitor'
-           exit(0)
+            print '\r\nExiting monitor'
+            exit(0)
+        except RuntimeError as e:
+            exceptRgx = compile('[^\n\t]+$')
+            print '\n', 'RuntimeError:', exceptRgx.search(e.args[0]).group(0)
+            exit(1)
 
 
 if __name__ == "__main__":
