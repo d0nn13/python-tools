@@ -2,8 +2,8 @@
 from pylibftdi import Device, FtdiError
 from sys import stdout, exit
 from os import system
-from UnbufferedStreamWrapper import *
-from Hexdump import *
+from lib.UnbufferedStreamWrapper import *
+from lib.Hexdump import *
 import argparse
 
 
