@@ -3,6 +3,7 @@ from pylibftdi import Device, FtdiError
 from sys import stdout, exit
 from os import system
 from UnbufferedStreamWrapper import *
+from Hexdump import *
 import argparse
 
 
@@ -10,17 +11,22 @@ class RS485Monitor:
     def __init__(self, baudrate = 1250000, databits = 8, stopbits = 0, paritymode = 2):
         try:
             self._d = Device()
+            self._d.baudrate = baudrate
+            self._d.ftdi_fn.ftdi_set_line_property(databits, stopbits, paritymode)
+            self._d.flush()
+            self._out = UnbufferedStreamWrapper(stdout)
+            self._raw = False
+            self._hexdump = Hexdump()
         except FtdiError as e:
             print '\rCould not start FTDI Device : ' + e.args[0]
             exit(0)
-        self._d.baudrate = baudrate
-        self._d.ftdi_fn.ftdi_set_line_property(databits, stopbits, paritymode)
-        self._d.flush()
-        self._out = UnbufferedStreamWrapper(stdout)
-        self._raw = False
+
 
     def raw(self):
         self._out.write(self._d.read(256))
+
+    def hexdump(self):
+        self._hexdump.write(self._d.read(256))
 
     def normal(self):
         d = self._d.read(128)
@@ -47,8 +53,8 @@ class RS485Monitor:
                 print 'Exiting monitor'
                 exit(1)
             except KeyboardInterrupt:
-               print '\r\nExiting monitor'
-               exit(0)
+                print '\r\nExiting monitor'
+                exit(0)
 
 
 if __name__ == "__main__":
