@@ -3,7 +3,7 @@ from naoqi import ALBroker, ALProxy
 from sys import stdout, exit
 from os import system
 from re import compile, search
-from UnbufferedStreamWrapper import *
+from lib.UnbufferedStreamWrapper import *
 import argparse
 
 
