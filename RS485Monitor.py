@@ -91,7 +91,7 @@ class MonitorDTS(RS485Monitor):
         self._hexdump = Hexdump()
         self._buffer = []
         self._sof = ['\x73', '\x95', '\xDB', '\x42']
-        self._sofseq = 0
+        self._sofok = 0
         self._start = 0
         self._frameNb = 0
         self._config = {}
@@ -105,26 +105,29 @@ class MonitorDTS(RS485Monitor):
             self._dataSize += i.values()[0]
 
     def _readBuffer(self):
-        while len(self._buffer) < 24:
-            c = self._d.read(1)
-            if len(c):
-                self._buffer.append(c)
+        if len(self._buffer) >= (self._dataSize + len(self._sof)):
+            return
+        else:
+            buf = self._d.read(256)
+            for c in buf:
+                if len(c):
+                    self._buffer.append(c)
+        self._readBuffer()
 
     def _getSOF(self):
-        if (self._sofseq >= len(self._sof)):
+        if (self._sofok >= len(self._sof)):
             if len(self._buffer) < (self._dataSize + len(self._sof)):
                 self._readBuffer()
-            self._sofseq = 0
+            self._sofok = 0
             self._start = 1
-            #self._out.writeln('SOF')
             return
 
         if (self._start or len(self._buffer) < 4):
             self._readBuffer()
-        if (self._buffer.pop(0) == self._sof[self._sofseq]):
-            self._sofseq += 1
+        if (self._buffer.pop(0) == self._sof[self._sofok]):
+            self._sofok += 1
         else:
-            self._sofseq = 0
+            self._sofok = 0
             self._getSOF()
 
     def _decodeFrame(self, frame):
@@ -132,16 +135,19 @@ class MonitorDTS(RS485Monitor):
         off = 0
 
         if len(frame) != self._dataSize:
-            self._out.write('short\n')
+            raise Exception('decodeFrame: not enough bytes in frame!')
 
+        self._out.write('| ')
         for obj in self._config:
             label = obj.keys()[0]
-            size = obj.values()[0]
-            for c in range(off, off + size):
-                data = ''.join([frame[c], data])
-            off += size
-            self._out.write('{0}: {1}\t'.format(label, int(b2a_hex(data), 16)))
-            data = ''
+            if len(label):
+                size = obj.values()[0]
+                for c in range(off, off + size):
+                    data = ''.join([frame[c], data])
+                off += size
+
+                self._out.write('\x1b[33m[{0}]\x1b[0m: \x1b[1;37m{1:>11}\x1b[0;0m | '.format(label, int(b2a_hex(data), 16)))
+                data = ''
 
         self._out.write('\n')
 
@@ -154,7 +160,6 @@ class MonitorDTS(RS485Monitor):
             self._readBuffer()
             if not self._start:
                 self._getSOF()
-
             c = 0
             frame = ''
             while (self._start):
@@ -163,13 +168,8 @@ class MonitorDTS(RS485Monitor):
                 if (c < self._dataSize):
                     continue
                 self._frameNb += 1
-                #self._hexdump.write(frame)
-                #self._out.writeln('EOF')
                 self._start = 0
                 self._decodeFrame(frame)
-
-
-
 
 
 def main():
