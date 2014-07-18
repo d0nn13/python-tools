@@ -2,16 +2,18 @@
 from pylibftdi import Device, FtdiError
 from sys import stdout, exit
 from os import system
+from time import sleep
+from binascii import b2a_hex
 from lib.UnbufferedStreamWrapper import *
 from lib.Hexdump import *
-import argparse
-import abc
+from lib.DtsConfig import *
+import argparse, abc, json
 
 
-class RS485Monitor:
+class RS485Monitor(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, single = 0, baudrate = 1250000, databits = 8, stopbits = 0, paritymode = 2):
+    def __init__(self, single = 0, mode='t', baudrate = 1250000, databits = 8, stopbits = 0, paritymode = 2):
         self._single = single
         self._count = 0
         self._out = UnbufferedStreamWrapper(stdout)
@@ -27,6 +29,7 @@ class RS485Monitor:
     @abc.abstractmethod
     def run(self):
         return
+
 
 class MonitorNormal(RS485Monitor):
     def __init__(self, *args, **kwargs):
@@ -82,18 +85,105 @@ class MonitorRaw(RS485Monitor):
                 raise KeyboardInterrupt
 
 
+class MonitorDTS(RS485Monitor):
+    def __init__(self, *args, **kwargs):
+        super(MonitorDTS, self).__init__(*args, **kwargs)
+        self._hexdump = Hexdump()
+        self._buffer = []
+        self._sof = ['\x73', '\x95', '\xDB', '\x42']
+        self._sofseq = 0
+        self._start = 0
+        self._frameNb = 0
+        self._config = {}
+        self._dataSize = 0
+        self._loadConfig()
+
+    def _loadConfig(self):
+        with open('dtsconfig.json') as f:
+            self._config = json.loads(f.read())
+        for i in self._config:
+            self._dataSize += i.values()[0]
+
+    def _readBuffer(self):
+        while len(self._buffer) < 24:
+            c = self._d.read(1)
+            if len(c):
+                self._buffer.append(c)
+
+    def _getSOF(self):
+        if (self._sofseq >= len(self._sof)):
+            if len(self._buffer) < (self._dataSize + len(self._sof)):
+                self._readBuffer()
+            self._sofseq = 0
+            self._start = 1
+            #self._out.writeln('SOF')
+            return
+
+        if (self._start or len(self._buffer) < 4):
+            self._readBuffer()
+        if (self._buffer.pop(0) == self._sof[self._sofseq]):
+            self._sofseq += 1
+        else:
+            self._sofseq = 0
+            self._getSOF()
+
+    def _decodeFrame(self, frame):
+        data = ''
+        off = 0
+
+        if len(frame) != self._dataSize:
+            self._out.write('short\n')
+
+        for obj in self._config:
+            label = obj.keys()[0]
+            size = obj.values()[0]
+            for c in range(off, off + size):
+                data = ''.join([frame[c], data])
+            off += size
+            self._out.write('{0}: {1}\t'.format(label, int(b2a_hex(data), 16)))
+            data = ''
+
+        self._out.write('\n')
+
+    def run(self):
+        system('clear')
+        self._out.write("Monitor started : Baudrate={0} [DTS mode]".format(self._d.baudrate))
+        self._out.writeln("\t<Datasize: {0} bytes>".format(str(self._dataSize)))
+
+        while (1):
+            self._readBuffer()
+            if not self._start:
+                self._getSOF()
+
+            c = 0
+            frame = ''
+            while (self._start):
+                frame += self._buffer.pop(0)
+                c += 1
+                if (c < self._dataSize):
+                    continue
+                self._frameNb += 1
+                #self._hexdump.write(frame)
+                #self._out.writeln('EOF')
+                self._start = 0
+                self._decodeFrame(frame)
+
+
+
+
 
 def main():
     classDict = {
         'normal'  : globals()['MonitorNormal'],
         'hexdump' : globals()['MonitorHexdump'],
-        'raw'     : globals()['MonitorRaw']
+        'raw'     : globals()['MonitorRaw'],
+        'dts'     : globals()['MonitorDTS']
     }
     p = argparse.ArgumentParser(prog='RS485Monitor.py', description='Monitor FTDI RS485 Rx.')
     p.add_argument('-m', '--mode',
-                    choices=['normal', 'hexdump', 'raw'],
+                    choices=['normal', 'hexdump', 'raw', 'dts'],
                     default = 'normal',
-                    help='Raw output')
+                    help='Monitor mode')
     p.add_argument('-s', '--single',
                     type = int,
                     default = 0,
@@ -109,7 +199,6 @@ def main():
         pass
 
     print '\r\nExiting monitor'
-    exit(0)
 
 if __name__ == "__main__":
     main()
