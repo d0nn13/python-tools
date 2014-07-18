@@ -6,8 +6,15 @@ class UnbufferedStreamWrapper(object):
         if not type(stream) is file:
             raise AttributeError('Cannot construct Wrapper with object ' + str(type(stream)))
         self._stream = stream
+
     def write(self, data):
         self._stream.write(data)
         self._stream.flush()
+
+    def writeln(self, data):
+        self._stream.write(data)
+        self._stream.write('\n')
+        self._stream.flush()
+
     def __getattr__(self, attr):
         return getattr(self._stream, attr)
