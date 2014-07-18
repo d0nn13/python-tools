@@ -4,7 +4,7 @@ from sys import stdout, exit
 from time import sleep
 import argparse
 
-class SPITransmitter:
+class SPITransmitter(object):
     def __init__(self, mode, freq, pause):
         self._mode = mode
         self._freq = freq
