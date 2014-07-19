@@ -3,7 +3,6 @@ from pylibftdi import Device, FtdiError
 from sys import stdout, exit
 from os import system
 from time import sleep
-from binascii import b2a_hex
 from struct import unpack
 from lib.UnbufferedStreamWrapper import *
 from lib.Hexdump import *
