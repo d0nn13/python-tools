@@ -91,14 +91,13 @@ class MonitorDTS(RS485Monitor):
     def __init__(self, *args, **kwargs):
         super(MonitorDTS, self).__init__(*args, **kwargs)
         self._hexdump = Hexdump()
-        self._buffer = []
         self._sof = ['\x73', '\x95', '\xDB', '\x42']
+        self._buffer = []
+        self._config = []
+        self._dataSize = 0
         self._sofok = 0
         self._start = 0
         self._frameNb = 0
-        self._config = {}
-        self._dataSize = 0
-        self._loadConfig()
 
     def _loadConfig(self):
         with open('dtsconfig.json') as f:
@@ -155,6 +154,7 @@ class MonitorDTS(RS485Monitor):
 
     def run(self):
         system('clear')
+        self._loadConfig()
         self._out.write("Monitor started : Baudrate={0} [DTS mode]".format(self._d.baudrate))
         self._out.writeln("\t<Datasize: {0} bytes>".format(str(self._dataSize)))
 
