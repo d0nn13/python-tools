@@ -6,7 +6,6 @@ from time import sleep
 from binascii import b2a_hex
 from lib.UnbufferedStreamWrapper import *
 from lib.Hexdump import *
-from lib.DtsConfig import *
 import argparse, abc, json
 
 class RS485MonitorException(Exception):
