@@ -6,7 +6,14 @@ from time import sleep
 from struct import unpack
 from lib.UnbufferedStreamWrapper import *
 from lib.Hexdump import *
-import argparse, abc, json
+import abc
+import argparse
+import json
+
+normColor = '\x1b[0;0m'
+lablColor = '\x1b[33m'
+valuColor = '\x1b[1;37m'
+
 
 class RS485MonitorException(Exception):
     pass
@@ -15,14 +22,17 @@ class RS485MonitorException(Exception):
 class RS485Monitor(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, single = 0, mode='t', baudrate = 1250000, databits = 8, stopbits = 0, paritymode = 2):
+    def __init__(self, single=0, mode='t', baudrate=1250000,
+                 databits=8, stopbits=0, paritymode=2):
         self._single = single
         self._count = 0
         self._out = UnbufferedStreamWrapper(stdout)
         try:
             self._d = Device()
             self._d.baudrate = baudrate
-            self._d.ftdi_fn.ftdi_set_line_property(databits, stopbits, paritymode)
+            self._d.ftdi_fn.ftdi_set_line_property(databits,
+                                                   stopbits,
+                                                   paritymode)
             self._d.flush()
         except FtdiError as e:
             print '\rCould not start FTDI Device : ' + e.args[0]
@@ -39,7 +49,8 @@ class MonitorNormal(RS485Monitor):
 
     def run(self):
         system('clear')
-        self._out.write("Monitor started : Baudrate={0} [Normal mode]\n".format(self._d.baudrate))
+        self._out.write('Monitor started : ')
+        self._out.writeln('Baudrate=' + self._d.baudrate + ' [Normal mode]')
 
         while (1):
             buf = self._d.read(256)
@@ -49,6 +60,7 @@ class MonitorNormal(RS485Monitor):
             if (self._single and (self._count >= self._single)):
                 raise KeyboardInterrupt
 
+
 class MonitorHexdump(RS485Monitor):
     def __init__(self, *args, **kwargs):
         super(MonitorHexdump, self).__init__(*args, **kwargs)
@@ -56,7 +68,8 @@ class MonitorHexdump(RS485Monitor):
 
     def run(self):
         system('clear')
-        self._out.write("Monitor started : Baudrate={0} [Hexdump mode]\n".format(self._d.baudrate))
+        self._out.write('Monitor started : ')
+        self._out.writeln('Baudrate=' + self._d.baudrate + ' [Hexdump mode]')
 
         while (1):
             buf = self._d.read(256)
@@ -73,7 +86,8 @@ class MonitorRaw(RS485Monitor):
 
     def run(self):
         system('clear')
-        self._out.write("Monitor started : Baudrate={0} [Raw mode]\n".format(self._d.baudrate))
+        self._out.write('Monitor started : ')
+        self._out.writeln('Baudrate=' + self._d.baudrate + ' [Raw mode]')
 
         while (1):
             buf = self._d.read(2)
@@ -91,9 +105,9 @@ class MonitorDTS(RS485Monitor):
     def __init__(self, *args, **kwargs):
         super(MonitorDTS, self).__init__(*args, **kwargs)
         self._hexdump = Hexdump()
-        self._endianesses = {'big' : '>', 'lil' : '<'}
-        self._typeSizes = {'h' : 2, 'H' : 2, 'i' : 4, 'I' : 4,
-                         'q' : 8, 'Q' : 8, 'f' : 4, 'd' : 8}
+        self._endianesses = {'big': '>', 'lil': '<'}
+        self._typeSizes = {'h': 2, 'H': 2, 'i': 4, 'I': 4,
+                           'q': 8, 'Q': 8, 'f': 4, 'd': 8}
         self._sof = ['\x73', '\x95', '\xDB', '\x42']
 
         self._buffer = []
@@ -116,9 +130,11 @@ class MonitorDTS(RS485Monitor):
             raise RS485MonitorException('loadConfig', 'Empty config file')
         for i in self._config:
             if len(i.values()) != 1 or len(i.keys()) != 1:
-                raise RS485MonitorException('loadConfig', 'Invalid config file')
+                raise RS485MonitorException('loadConfig',
+                                            'Invalid config file')
             if not i.values()[0] in self._typeSizes:
-                raise RS485MonitorException('loadConfig', 'Invalid type in config file')
+                raise RS485MonitorException('loadConfig',
+                                            'Invalid type in config file')
             self._dataSize += self._typeSizes[i.values()[0]]
 
     def _readBuffer(self):
@@ -153,10 +169,10 @@ class MonitorDTS(RS485Monitor):
         off = 0
 
         if len(frame) != self._dataSize:
-            err = 'Got {0} bytes instead of {1}.'.format(len(frame), self._dataSize)
+            err = 'Got {0} bytes instead of {1}.'.format(len(frame),
+                                                         self._dataSize)
             err += ' Check JSON config file and/or FW!'
             raise RS485MonitorException('decodeFrame', err)
-
 
         for obj in self._config:
             label = obj.keys()[0]
@@ -164,20 +180,15 @@ class MonitorDTS(RS485Monitor):
                 size = self._typeSizes[obj.values()[0]]
                 for c in range(off, off + size):
                     buf = ''.join([frame[c], buf])
-                buf = '{:\x00>4}'.format(buf)
                 off += size
-                dataType = '{endianess}{type}'.format(
-                            endianess = self._endianesses[self.endianess],
-                            type = obj.values()[0])
-                data.append({label : unpack(dataType, buf)[0]})
+                dataType = '{e}{t}'.format(e=self._endianesses[self.endianess],
+                                           t=obj.values()[0])
+                data.append({label: unpack(dataType, buf)[0]})
                 buf = ''
 
         return (data)
 
     def _printData(self, data):
-        normColor = '\x1b[0;0m'
-        lablColor = '\x1b[33m'
-        valuColor = '\x1b[1;37m'
 
         if self.displayFrameNb:
             self._out.write('{:>10} '.format(self._frameNb))
@@ -185,22 +196,21 @@ class MonitorDTS(RS485Monitor):
         for d in data:
             if len(d.values()) != 1 or len(d.keys()) != 1:
                 raise RS485MonitorException('printData', 'Invalid data')
-            string = '{lC}[{l}]{lc}: {vC}{v:>11}{vc} | '.format(
-                    lC = lablColor,
-                    l = d.keys()[0],
-                    lc = normColor,
-                    vC = valuColor,
-                    v = d.values()[0],
-                    vc = normColor)
-            self._out.write(string)
+            out = '{lC}[{l}]{lc}: {vC}{v:>11}{vc} | '.format(lC=lablColor,
+                                                             l=d.keys()[0],
+                                                             lc=normColor,
+                                                             vC=valuColor,
+                                                             v=d.values()[0],
+                                                             vc=normColor)
+            self._out.write(out)
         self._out.write('\n')
 
-
     def run(self):
-        system('clear')
         self._loadConfig()
-        self._out.write("Monitor started : Baudrate={0} [DTS mode]".format(self._d.baudrate))
-        self._out.writeln("\t<Datasize: {0} bytes>".format(str(self._dataSize)))
+        system('clear')
+        self._out.write('Monitor started : ')
+        self._out.write('Baudrate=' + '0' + '[DTS mode]\t')
+        self._out.writeln('<Datasize: {0} bytes>'.format(self._dataSize))
 
         while (1):
             self._readBuffer()
@@ -221,32 +231,33 @@ class MonitorDTS(RS485Monitor):
 
 def main():
     classDict = {
-        'normal'  : globals()['MonitorNormal'],
-        'hexdump' : globals()['MonitorHexdump'],
-        'raw'     : globals()['MonitorRaw'],
-        'dts'     : globals()['MonitorDTS']
+        'normal': globals()['MonitorNormal'],
+        'hexdump': globals()['MonitorHexdump'],
+        'raw': globals()['MonitorRaw'],
+        'dts': globals()['MonitorDTS']
     }
-    p = argparse.ArgumentParser(prog='RS485Monitor.py', description='Monitor FTDI RS485 Rx.')
+    p = argparse.ArgumentParser(prog='RS485Monitor.py',
+                                description='Monitor FTDI RS485 Rx.')
     p.add_argument('-m', '--mode',
-                    choices=['normal', 'hexdump', 'raw', 'dts'],
-                    default = 'normal',
-                    help='Monitor mode')
+                   choices=['normal', 'hexdump', 'raw', 'dts'],
+                   default='normal',
+                   help='Monitor mode')
     p.add_argument('-s', '--single',
-                    type = int,
-                    default = 0,
-                    help='Single shot mode')
+                   type=int,
+                   default=0,
+                   help='Single shot mode')
     args = p.parse_args()
     try:
         mon = classDict[args.mode](args.single)
         mon.run()
     except FtdiError as e:
-        print 'FTDI Exception caught : ' + e.args[0]
+        print normColor + 'FTDI Exception caught : ' + e.args[0]
     except RS485MonitorException as e:
-        print '[{0}] : {1}'.format(e.args[0], e.args[1])
+        print normColor + '[{0}] : {1}'.format(e.args[0], e.args[1])
     except KeyboardInterrupt:
         pass
 
-    print '\r\nExiting monitor'
+    print normColor + '\r\nExiting monitor'
 
 if __name__ == "__main__":
     main()
