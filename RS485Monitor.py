@@ -35,8 +35,7 @@ class RS485Monitor(object):
                                                    paritymode)
             self._d.flush()
         except FtdiError as e:
-            print '\rCould not start FTDI Device : ' + e.args[0]
-            exit(1)
+            raise FtdiError('could not start FTDI Device "' + e.args[0] + '"')
 
     @abc.abstractmethod
     def run(self):
