@@ -4,6 +4,7 @@ from sys import stdout, exit
 from os import system
 from time import sleep
 from binascii import b2a_hex
+from struct import unpack
 from lib.UnbufferedStreamWrapper import *
 from lib.Hexdump import *
 import argparse, abc, json
@@ -91,7 +92,11 @@ class MonitorDTS(RS485Monitor):
     def __init__(self, *args, **kwargs):
         super(MonitorDTS, self).__init__(*args, **kwargs)
         self._hexdump = Hexdump()
+        self._endianesses = {'big' : '>', 'lil' : '<'}
+        self._typeSizes = {'h' : 2, 'H' : 2, 'i' : 4, 'I' : 4,
+                         'q' : 8, 'Q' : 8, 'f' : 4, 'd' : 8}
         self._sof = ['\x73', '\x95', '\xDB', '\x42']
+
         self._buffer = []
         self._config = []
         self._dataSize = 0
@@ -99,11 +104,23 @@ class MonitorDTS(RS485Monitor):
         self._start = 0
         self._frameNb = 0
 
+        self.displayFrameNb = 0
+        self.endianess = 'big'
+
     def _loadConfig(self):
         with open('dtsconfig.json') as f:
-            self._config = json.loads(f.read())
+            try:
+                self._config = json.loads(f.read())
+            except ValueError as e:
+                raise RS485MonitorException('json.loads', e.args[0])
+        if not len(self._config):
+            raise RS485MonitorException('loadConfig', 'Empty config file')
         for i in self._config:
-            self._dataSize += i.values()[0]
+            if len(i.values()) != 1 or len(i.keys()) != 1:
+                raise RS485MonitorException('loadConfig', 'Invalid config file')
+            if not i.values()[0] in self._typeSizes:
+                raise RS485MonitorException('loadConfig', 'Invalid type in config file')
+            self._dataSize += self._typeSizes[i.values()[0]]
 
     def _readBuffer(self):
         if len(self._buffer) >= (self._dataSize + len(self._sof)):
@@ -132,7 +149,8 @@ class MonitorDTS(RS485Monitor):
             self._getSOF()
 
     def _decodeFrame(self, frame):
-        data = ''
+        buf = ''
+        data = []
         off = 0
 
         if len(frame) != self._dataSize:
@@ -141,19 +159,43 @@ class MonitorDTS(RS485Monitor):
             raise RS485MonitorException('decodeFrame', err)
 
 
-        self._out.write('| ')
         for obj in self._config:
             label = obj.keys()[0]
             if len(label):
-                size = obj.values()[0]
+                size = self._typeSizes[obj.values()[0]]
                 for c in range(off, off + size):
-                    data = ''.join([frame[c], data])
+                    buf = ''.join([frame[c], buf])
+                buf = '{:\x00>4}'.format(buf)
                 off += size
+                dataType = '{endianess}{type}'.format(
+                            endianess = self._endianesses[self.endianess],
+                            type = obj.values()[0])
+                data.append({label : unpack(dataType, buf)[0]})
+                buf = ''
 
-                self._out.write('\x1b[33m[{0}]\x1b[0m: \x1b[1;37m{1:>11}\x1b[0;0m | '.format(label, int(b2a_hex(data), 16)))
-                data = ''
+        return (data)
 
+    def _printData(self, data):
+        normColor = '\x1b[0;0m'
+        lablColor = '\x1b[33m'
+        valuColor = '\x1b[1;37m'
+
+        if self.displayFrameNb:
+            self._out.write('{:>10} '.format(self._frameNb))
+        self._out.write('| ')
+        for d in data:
+            if len(d.values()) != 1 or len(d.keys()) != 1:
+                raise RS485MonitorException('printData', 'Invalid data')
+            string = '{lC}[{l}]{lc}: {vC}{v:>11}{vc} | '.format(
+                    lC = lablColor,
+                    l = d.keys()[0],
+                    lc = normColor,
+                    vC = valuColor,
+                    v = d.values()[0],
+                    vc = normColor)
+            self._out.write(string)
         self._out.write('\n')
+
 
     def run(self):
         system('clear')
@@ -174,7 +216,8 @@ class MonitorDTS(RS485Monitor):
                     continue
                 self._frameNb += 1
                 self._start = 0
-                self._decodeFrame(frame)
+                data = self._decodeFrame(frame)
+                self._printData(data)
 
 
 def main():
