@@ -1,0 +1,20 @@
+{
+    "endianess": "L",
+    "items": [
+        {
+            "uInt16": "H"
+        },
+        {
+            "uInt16": "H"
+        },
+        {
+            "uInt32": "I"
+        },
+        {
+            "float": "f"
+        },
+        {
+            "double": "d"
+        }
+    ]
+}

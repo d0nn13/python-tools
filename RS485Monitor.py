@@ -49,7 +49,7 @@ class RS485Monitor(object):
 
 
 class MonitorNormal(RS485Monitor):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, a, *args, **kwargs):
         super(MonitorNormal, self).__init__(a, *args, **kwargs)
 
     def run(self):
@@ -67,7 +67,7 @@ class MonitorNormal(RS485Monitor):
 
 
 class MonitorHexdump(RS485Monitor):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, a, *args, **kwargs):
         super(MonitorHexdump, self).__init__(a, *args, **kwargs)
         self._hexdump = Hexdump()
 
@@ -86,7 +86,7 @@ class MonitorHexdump(RS485Monitor):
 
 
 class MonitorRaw(RS485Monitor):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, a, *args, **kwargs):
         super(MonitorRaw, self).__init__(a, *args, **kwargs)
 
     def run(self):

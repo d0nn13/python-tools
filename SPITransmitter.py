@@ -4,6 +4,7 @@ from sys import stdout, exit
 from time import sleep
 import argparse
 
+
 class SPITransmitter(object):
     def __init__(self, mode, freq, pause):
         self._mode = mode
@@ -21,6 +22,7 @@ class SPITransmitter(object):
         stdout.write('  |  Pause = ' + str(self._pause) + ' s\n')
         a = ord('A')
         s = 1
+
         while (1):
             try:
 
@@ -35,9 +37,9 @@ class SPITransmitter(object):
                 a += s * 2
 
             except KeyboardInterrupt:
-               print '\r\nExiting transmitter'
-               self._m.Close()
-               exit(0)
+                print '\r\nExiting transmitter'
+                self._m.Close()
+                exit(0)
             except Exception as e:
                 if (e.args[0] == 'all fine'):
                     print "Exception caught : Couldn't read from device"
@@ -50,18 +52,18 @@ class SPITransmitter(object):
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description='Transmit characters on FTDI SPI.')
     p.add_argument('-m', '--mode',
-                    type=int,
-                    choices=[0, 1, 2, 3],
-                    default=0,
-                    help='SPI Mode (see pylibmpsse doc for further info)')
+                   type=int,
+                   choices=[0, 1, 2, 3],
+                   default=0,
+                   help='SPI Mode (see pylibmpsse doc for further info)')
     p.add_argument('-f', '--frequency',
-                    type=int,
-                    default='460000',
-                    help='Clock frequency in Hz')
+                   type=int,
+                   default='460000',
+                   help='Clock frequency in Hz')
     p.add_argument('-p', '--pause',
-                    type=int,
-                    default='1',
-                    help='Pause time between two frames in seconds')
+                   type=int,
+                   default='1',
+                   help='Pause time between two frames in seconds')
     args = p.parse_args()
     t = SPITransmitter(args.mode, args.frequency, args.pause)
     t.run()
