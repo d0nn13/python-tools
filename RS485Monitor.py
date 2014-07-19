@@ -1,11 +1,11 @@
 #!/usr/bin/env python
+from lib.UnbufferedStreamWrapper import UnbufferedStreamWrapper
+from lib.Hexdump import Hexdump
 from pylibftdi import Device, FtdiError
 from sys import stdout, exit
 from os import system
 from time import sleep
 from struct import unpack
-from lib.UnbufferedStreamWrapper import *
-from lib.Hexdump import *
 import abc
 import argparse
 import json
@@ -16,17 +16,23 @@ valuColor = '\x1b[1;37m'
 
 
 class RS485MonitorException(Exception):
-    pass
+    def __init__(self, sender, msg):
+        self.sender = sender
+        self.msg = msg
+
+    def __str__(self):
+        return repr(self.value)
 
 
 class RS485Monitor(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, single=0, mode='t', baudrate=1250000,
+    def __init__(self, a, mode='t', baudrate=1250000,
                  databits=8, stopbits=0, paritymode=2):
-        self._single = single
+        self._single = a.single
         self._count = 0
         self._out = UnbufferedStreamWrapper(stdout)
+
         try:
             self._d = Device()
             self._d.baudrate = baudrate
@@ -44,7 +50,7 @@ class RS485Monitor(object):
 
 class MonitorNormal(RS485Monitor):
     def __init__(self, *args, **kwargs):
-        super(MonitorNormal, self).__init__(*args, **kwargs)
+        super(MonitorNormal, self).__init__(a, *args, **kwargs)
 
     def run(self):
         system('clear')
@@ -62,7 +68,7 @@ class MonitorNormal(RS485Monitor):
 
 class MonitorHexdump(RS485Monitor):
     def __init__(self, *args, **kwargs):
-        super(MonitorHexdump, self).__init__(*args, **kwargs)
+        super(MonitorHexdump, self).__init__(a, *args, **kwargs)
         self._hexdump = Hexdump()
 
     def run(self):
@@ -81,7 +87,7 @@ class MonitorHexdump(RS485Monitor):
 
 class MonitorRaw(RS485Monitor):
     def __init__(self, *args, **kwargs):
-        super(MonitorRaw, self).__init__(*args, **kwargs)
+        super(MonitorRaw, self).__init__(a, *args, **kwargs)
 
     def run(self):
         system('clear')
@@ -101,49 +107,80 @@ class MonitorRaw(RS485Monitor):
 
 
 class MonitorDTS(RS485Monitor):
-    def __init__(self, *args, **kwargs):
-        super(MonitorDTS, self).__init__(*args, **kwargs)
+    def __init__(self, a, *args, **kwargs):
+        super(MonitorDTS, self).__init__(a, *args, **kwargs)
         self._hexdump = Hexdump()
-        self._endianKeys = {'big': '>', 'lil': '<'}
-        self._typeSizes = {'h': 2, 'H': 2, 'i': 4, 'I': 4,
-                           'q': 8, 'Q': 8, 'f': 4, 'd': 8, 'x': 1}
+        self._endianKeys = {'B': '>', 'L': '<'}
+        self._typeKeys = {'h': 2, 'H': 2, 'i': 4, 'I': 4,
+                          'q': 8, 'Q': 8, 'f': 4, 'd': 8, 'x': 1}
         self._sof = ['\x73', '\x95', '\xDB', '\x42']
 
         self._buffer = []
-        self._config = []
+        self._frameDesc = {}
+        self._decoder = ''
+        self._labels = []
+        self._frameDescFile = a.desc
+        self._logFile = a.log
+        self._displayFrameNb = a.frame_number
         self._dataSize = 0
         self._sofok = 0
         self._start = 0
         self._frameNb = 0
         self._firstWrite = 1
 
-        self.displayFrameNb = 0
-        self.enableWriteFile = 1
-        self.endianess = 'lil'
-
-    def _loadConfig(self):
-        with open('dtsconfig.json') as f:
+    def _loadFrameDesc(self):
+        with open(self._frameDescFile) as f:
             try:
-                self._config = json.loads(f.read())
+                self._frameDesc = json.loads(f.read())
             except ValueError as e:
-                raise RS485MonitorException('json.loads', e.args[0])
-        if not len(self._config):
-            raise RS485MonitorException('loadConfig', 'Empty config file')
-        for i in self._config:
-            if len(i.values()) != 1 or len(i.keys()) != 1:
-                raise RS485MonitorException('loadConfig',
-                                            'Invalid config file')
-            if not i.values()[0] in self._typeSizes:
-                raise RS485MonitorException('loadConfig',
-                                            'Invalid type in config file')
-            self._dataSize += self._typeSizes[i.values()[0]]
+                raise RS485MonitorException('loadFrameDesc:json.loads',
+                                            e.args[0])
+
+        if not type(self._frameDesc) == dict or \
+            not len(self._frameDesc) == 2 or \
+                not 'endianess' in self._frameDesc.keys() or \
+                    not 'items' in self._frameDesc.keys():
+            raise RS485MonitorException('loadFrameDesc',
+                                        'Invalid frame descriptor')
+
+        if not self._frameDesc['endianess'] in self._endianKeys:
+            raise RS485MonitorException('loadFrameDesc',
+                                        'Unrecognized endianess')
+        self._decoder = self._endianKeys[self._frameDesc['endianess']]
+
+        if type(self._frameDesc['items']) != list:
+            raise RS485MonitorException('loadFrameDesc',
+                                        'Unrecognized item list format')
+
+        for item in self._frameDesc['items']:
+            if type(item) != dict or \
+                    len(item.values()) != 1 or len(item.keys()) != 1:
+                raise RS485MonitorException('loadFrameDesc',
+                                            'Unrecognized item size')
+
+            if not item.values()[0] in self._typeKeys:
+                raise RS485MonitorException('loadFrameDesc',
+                                            'Unrecognized item type')
+
+            self._decoder += item.values()[0]
+            self._dataSize += self._typeKeys[item.values()[0]]
+            if (item.values()[0] != 'x'):
+                self._labels.append(item.keys()[0])
+
+        if self._dataSize % 2:
+            raise RS485MonitorException('loadFrameDesc',
+                                        'Data size is not even')
 
     def _readBuffer(self):
         if len(self._buffer) >= (self._dataSize + len(self._sof)):
             return
         else:
             buf = self._d.read(256)
-            #buf = ''.join(self._sof) + '\x01\x00\x00\x00\x02\x00\x00\x00'
+            '''
+            buf = ''.join(self._sof) + '\x10\x00\x10\x00\x20\x00\x00\x00'
+            buf += '\x00\x00\x00\x42\x00\x00\x00\x00\x00\x00\x50\x40'
+            sleep(.03)
+            '''
             for c in buf:
                 if len(c):
                     self._buffer.append(c)
@@ -166,55 +203,45 @@ class MonitorDTS(RS485Monitor):
             self._getSOF()
 
     def _decodeFrame(self, frame):
-        buf = ''
-        data = []
-        labels = []
-        decodeKey = self._endianKeys[self.endianess]
-
         if len(frame) != self._dataSize:
-            err = 'Got {0} bytes instead of {1}.'.format(len(frame),
-                                                         self._dataSize)
-            err += ' Check JSON config file and/or FW!'
+            err = 'FATAL: Got ' + len(frame) + 'bytes instead of '
+            err += self._dataSize + '. Check JSON config file and/or FW!'
             raise RS485MonitorException('decodeFrame', err)
-
-        for obj in self._config:
-            decodeKey += obj.values()[0]
-            if (obj.values()[0] != 'x'):
-                labels.append(obj.keys()[0])
-        values = unpack(decodeKey, frame)
-        return ([labels, values])
+        values = unpack(self._decoder, frame)
+        return ([self._labels, values])
 
     def _printData(self, data):
-        if self.displayFrameNb:
-            self._out.write('{:>10} '.format(self._frameNb))
         self._out.write('| ')
         for i in range(len(data[0])):
-            out = '{lC}[{l}]{lc}: {vC}{v:>11}{vc} | '.format(lC=lablColor,
+            out = '{lC}[{l}]{lc}: {vC}{v:>15}{vc} | '.format(lC=lablColor,
                                                              l=data[0][i],
                                                              lc=normColor,
                                                              vC=valuColor,
                                                              v=data[1][i],
                                                              vc=normColor)
             self._out.write(out)
+        if self._displayFrameNb:
+            self._out.write('{} '.format(self._frameNb))
         self._out.write('\n')
 
     def _writeFile(self, data):
         values = []
+
         if self._firstWrite:
             self._firstWrite = 0
-            with open('log.txt', 'w') as f:
+            with open(self._logFile, 'w') as f:
                 f.write('# ' + ', '.join(data[0]) + '\n')
         else:
             for v in data[1]:
                 values.append(str(v))
-            with open('log.txt', 'a') as f:
-                f.write(', '.join(values) + '\n')
+            with open(self._logFile, 'a') as f:
+                f.write('  ' + ', '.join(values) + '\n')
 
     def run(self):
-        self._loadConfig()
+        self._loadFrameDesc()
         system('clear')
         self._out.write('Monitor started : ')
-        self._out.write('Baudrate=' + '0' + '[DTS mode]\t')
+        self._out.write('Baudrate=' + self._d.baudrate + '[DTS mode]\t')
         self._out.writeln('<Datasize: {0} bytes>'.format(self._dataSize))
 
         while (1):
@@ -232,7 +259,7 @@ class MonitorDTS(RS485Monitor):
                 self._start = 0
                 data = self._decodeFrame(frame)
                 self._printData(data)
-                if self.enableWriteFile:
+                if len(self._logFile):
                     self._writeFile(data)
 
 
@@ -253,14 +280,28 @@ def main():
                    type=int,
                    default=0,
                    help='Single shot mode')
+    p.add_argument('-d', '--desc',
+                   type=str,
+                   default='dtsframe.json',
+                   help='Frame Descriptor (DTS)')
+    p.add_argument('-l', '--log',
+                   type=str,
+                   default='',
+                   help='Log file output (DTS)')
+    p.add_argument('-n', '--frame-number',
+                   default=False,
+                   action='store_true',
+                   help='Print frame Number (DTS)')
+
     args = p.parse_args()
+
     try:
-        mon = classDict[args.mode](args.single)
+        mon = classDict[args.mode](args)
         mon.run()
     except FtdiError as e:
         print normColor + 'FTDI Exception caught : ' + e.args[0]
     except RS485MonitorException as e:
-        print normColor + '[{0}] : {1}'.format(e.args[0], e.args[1])
+        print normColor + '[{0}] : {1}'.format(e.sender, e.msg)
     except KeyboardInterrupt:
         pass
 
