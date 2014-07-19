@@ -9,6 +9,9 @@ from lib.Hexdump import *
 from lib.DtsConfig import *
 import argparse, abc, json
 
+class RS485MonitorException(Exception):
+    pass
+
 
 class RS485Monitor(object):
     __metaclass__ = abc.ABCMeta
@@ -135,7 +138,7 @@ class MonitorDTS(RS485Monitor):
         off = 0
 
         if len(frame) != self._dataSize:
-            raise Exception('decodeFrame: not enough bytes in frame!')
+            raise RS485MonitorException('decodeFrame: not enough bytes in frame!')
 
         self._out.write('| ')
         for obj in self._config:
@@ -194,7 +197,9 @@ def main():
     try:
         mon.run()
     except FtdiError as e:
-        print 'Exception caught : ' + e.args[0]
+        print 'FTDI Exception caught : ' + e.args[0]
+    except RS485MonitorException as e:
+        print 'Monitor Exception caught : ' + e.args[0]
     except KeyboardInterrupt:
         pass
 
