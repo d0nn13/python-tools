@@ -26,7 +26,7 @@ class RS485Monitor(object):
             self._d.flush()
         except FtdiError as e:
             print '\rCould not start FTDI Device : ' + e.args[0]
-            exit(0)
+            exit(1)
 
     @abc.abstractmethod
     def run(self):
@@ -191,9 +191,8 @@ def main():
                     default = 0,
                     help='Single shot mode')
     args = p.parse_args()
-    mon = classDict[args.mode](args.single)
-
     try:
+        mon = classDict[args.mode](args.single)
         mon.run()
     except FtdiError as e:
         print 'FTDI Exception caught : ' + e.args[0]
