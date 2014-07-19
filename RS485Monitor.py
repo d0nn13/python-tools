@@ -105,9 +105,9 @@ class MonitorDTS(RS485Monitor):
     def __init__(self, *args, **kwargs):
         super(MonitorDTS, self).__init__(*args, **kwargs)
         self._hexdump = Hexdump()
-        self._endianesses = {'big': '>', 'lil': '<'}
+        self._endianKeys = {'big': '>', 'lil': '<'}
         self._typeSizes = {'h': 2, 'H': 2, 'i': 4, 'I': 4,
-                           'q': 8, 'Q': 8, 'f': 4, 'd': 8}
+                           'q': 8, 'Q': 8, 'f': 4, 'd': 8, 'x': 1}
         self._sof = ['\x73', '\x95', '\xDB', '\x42']
 
         self._buffer = []
@@ -116,9 +116,11 @@ class MonitorDTS(RS485Monitor):
         self._sofok = 0
         self._start = 0
         self._frameNb = 0
+        self._firstWrite = 1
 
         self.displayFrameNb = 0
-        self.endianess = 'big'
+        self.enableWriteFile = 1
+        self.endianess = 'lil'
 
     def _loadConfig(self):
         with open('dtsconfig.json') as f:
@@ -142,6 +144,7 @@ class MonitorDTS(RS485Monitor):
             return
         else:
             buf = self._d.read(256)
+            #buf = ''.join(self._sof) + '\x01\x00\x00\x00\x02\x00\x00\x00'
             for c in buf:
                 if len(c):
                     self._buffer.append(c)
@@ -166,7 +169,8 @@ class MonitorDTS(RS485Monitor):
     def _decodeFrame(self, frame):
         buf = ''
         data = []
-        off = 0
+        labels = []
+        decodeKey = self._endianKeys[self.endianess]
 
         if len(frame) != self._dataSize:
             err = 'Got {0} bytes instead of {1}.'.format(len(frame),
@@ -175,35 +179,37 @@ class MonitorDTS(RS485Monitor):
             raise RS485MonitorException('decodeFrame', err)
 
         for obj in self._config:
-            label = obj.keys()[0]
-            if len(label):
-                size = self._typeSizes[obj.values()[0]]
-                for c in range(off, off + size):
-                    buf = ''.join([frame[c], buf])
-                off += size
-                dataType = '{e}{t}'.format(e=self._endianesses[self.endianess],
-                                           t=obj.values()[0])
-                data.append({label: unpack(dataType, buf)[0]})
-                buf = ''
-
-        return (data)
+            decodeKey += obj.values()[0]
+            if (obj.values()[0] != 'x'):
+                labels.append(obj.keys()[0])
+        values = unpack(decodeKey, frame)
+        return ([labels, values])
 
     def _printData(self, data):
-
         if self.displayFrameNb:
             self._out.write('{:>10} '.format(self._frameNb))
         self._out.write('| ')
-        for d in data:
-            if len(d.values()) != 1 or len(d.keys()) != 1:
-                raise RS485MonitorException('printData', 'Invalid data')
+        for i in range(len(data[0])):
             out = '{lC}[{l}]{lc}: {vC}{v:>11}{vc} | '.format(lC=lablColor,
-                                                             l=d.keys()[0],
+                                                             l=data[0][i],
                                                              lc=normColor,
                                                              vC=valuColor,
-                                                             v=d.values()[0],
+                                                             v=data[1][i],
                                                              vc=normColor)
             self._out.write(out)
         self._out.write('\n')
+
+    def _writeFile(self, data):
+        values = []
+        if self._firstWrite:
+            self._firstWrite = 0
+            with open('log.txt', 'w') as f:
+                f.write('# ' + ', '.join(data[0]) + '\n')
+        else:
+            for v in data[1]:
+                values.append(str(v))
+            with open('log.txt', 'a') as f:
+                f.write(', '.join(values) + '\n')
 
     def run(self):
         self._loadConfig()
@@ -227,6 +233,8 @@ class MonitorDTS(RS485Monitor):
                 self._start = 0
                 data = self._decodeFrame(frame)
                 self._printData(data)
+                if self.enableWriteFile:
+                    self._writeFile(data)
 
 
 def main():
