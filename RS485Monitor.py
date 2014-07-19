@@ -136,7 +136,10 @@ class MonitorDTS(RS485Monitor):
         off = 0
 
         if len(frame) != self._dataSize:
-            raise RS485MonitorException('decodeFrame: not enough bytes in frame!')
+            err = 'Got {0} bytes instead of {1}.'.format(len(frame), self._dataSize)
+            err += ' Check JSON config file and/or FW!'
+            raise RS485MonitorException('decodeFrame', err)
+
 
         self._out.write('| ')
         for obj in self._config:
@@ -197,7 +200,7 @@ def main():
     except FtdiError as e:
         print 'FTDI Exception caught : ' + e.args[0]
     except RS485MonitorException as e:
-        print 'Monitor Exception caught : ' + e.args[0]
+        print '[{0}] : {1}'.format(e.args[0], e.args[1])
     except KeyboardInterrupt:
         pass
 
