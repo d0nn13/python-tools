@@ -122,10 +122,10 @@ class MonitorDTS(RS485Monitor):
         self._sof = ['\x73', '\x95', '\xDB', '\x42']
 
         self._buffer = []
-        self._frameDesc = {}
+        self._structDesc = {}
         self._decoder = ''
         self._labels = []
-        self._frameDescFile = a.desc
+        self._structDescFile = a.desc
         self._logFile = a.log
         self._logIO = None
         self._noStdoutPrint = a.no_stdout
@@ -145,31 +145,46 @@ class MonitorDTS(RS485Monitor):
             self._logIO.close()
         super(MonitorDTS, self).__del__()
 
+    def _initDts(self):
+        self._loadFrameDesc()
+        if len(self._logFile):
+            self._initLogFile()
+        system('clear')
+        self._out.write('Monitor started : ')
+        self._out.write('Baudrate=' + str(self._d.baudrate) + '[DTS mode]\t')
+        self._out.writeln('<Datasize: {0} bytes>'.format(self._dataSize))
+        self._out.writeln('Using struct descriptor file : \'' +
+                          self._structDescFile + '\'')
+        if self._noStdoutPrint:
+            self._out.writeln('Stdout printing disabled')
+        if isinstance(self._logIO, file):
+            self._out.writeln('Logging to file: \'' + self._logFile + '\'')
+
     def _loadFrameDesc(self):
-        with open(self._frameDescFile) as f:
+        with open(self._structDescFile) as f:
             try:
-                self._frameDesc = json.loads(f.read())
+                self._structDesc = json.loads(f.read())
             except ValueError as e:
                 raise RS485MonitorException('loadFrameDesc:json.loads',
                                             e.args[0])
 
-        if not type(self._frameDesc) == dict or \
-            not len(self._frameDesc) == 2 or \
-                'endianess' not in self._frameDesc.keys() or \
-                'items' not in self._frameDesc.keys():
+        if not type(self._structDesc) == dict or \
+            not len(self._structDesc) == 2 or \
+                'endianess' not in self._structDesc.keys() or \
+                'items' not in self._structDesc.keys():
             raise RS485MonitorException('loadFrameDesc',
                                         'Invalid frame descriptor')
 
-        if not self._frameDesc['endianess'] in self._endianKeys:
+        if not self._structDesc['endianess'] in self._endianKeys:
             raise RS485MonitorException('loadFrameDesc',
                                         'Unrecognized endianess')
-        self._decoder = self._endianKeys[self._frameDesc['endianess']]
+        self._decoder = self._endianKeys[self._structDesc['endianess']]
 
-        if type(self._frameDesc['items']) != list:
+        if type(self._structDesc['items']) != list:
             raise RS485MonitorException('loadFrameDesc',
                                         'Unrecognized item list format')
 
-        for item in self._frameDesc['items']:
+        for item in self._structDesc['items']:
             if type(item) != dict or \
                     len(item.values()) != 1 or len(item.keys()) != 1:
                 raise RS485MonitorException('loadFrameDesc',
@@ -199,8 +214,10 @@ class MonitorDTS(RS485Monitor):
         if mode == 'a':
             self._logIO.write('\n\n\n')
             for i in range(79):
-                self._logIO.write('=')
+                self._logIO.write('#')
             self._logIO.write('\n')
+        self._logIO.write(
+            '# Using struct descriptor: \'' + self._structDescFile + '\'\n')
         self._logIO.write('# ' + ', '.join(self._labels) + '\n')
 
     def _readBuffer(self):
@@ -262,18 +279,7 @@ class MonitorDTS(RS485Monitor):
         self._logIO.write('\n')
 
     def run(self):
-        self._loadFrameDesc()
-        if len(self._logFile):
-            self._initLogFile()
-        system('clear')
-        self._out.write('Monitor started : ')
-        self._out.write('Baudrate=' + str(self._d.baudrate) + '[DTS mode]\t')
-        self._out.writeln('<Datasize: {0} bytes>'.format(self._dataSize))
-        if self._noStdoutPrint:
-            self._out.writeln('Stdout printing disabled')
-        if isinstance(self._logIO, file):
-            self._out.writeln('Logging to file: \'' + self._logFile + '\'')
-
+        self._initDts()
         while (1):
             self._readBuffer()
             if not self._start:
@@ -318,7 +324,8 @@ def main():
                    type=str,
                    default='dtsframe.json',
                    metavar='FILE',
-                   help='(dts) Frame Descriptor: Use FILE as frame descriptor')
+                   help='(dts) Struct Descriptor: \
+                       Use FILE as struct descriptor')
 
     p.add_argument('--log', '-l',
                    type=str,
