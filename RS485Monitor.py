@@ -148,7 +148,7 @@ class MonitorDTS(RS485Monitor):
         super(MonitorDTS, self).__del__()
 
     def _initDts(self):
-        self._loadFrameDesc()
+        self._loadStructDesc()
         if len(self._logFile):
             self._initLogFile()
         system('clear')
@@ -162,12 +162,12 @@ class MonitorDTS(RS485Monitor):
         if isinstance(self._logIO, file):
             self._out.writeln('Logging to file: \'' + self._logFile + '\'')
 
-    def _loadFrameDesc(self):
+    def _loadStructDesc(self):
         with open(self._structDescFile) as f:
             try:
                 self._structDesc = json.loads(f.read())
             except ValueError as e:
-                raise RS485MonitorException('loadFrameDesc:json.loads',
+                raise RS485MonitorException('loadStructDesc:json.loads',
                                             e.args[0])
 
         if not type(self._structDesc) == dict or \
