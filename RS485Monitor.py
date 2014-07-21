@@ -303,35 +303,38 @@ def main():
     }
     p = argparse.ArgumentParser(prog='RS485Monitor.py',
                                 description='Monitor FTDI RS485 Rx.')
-    p.add_argument('-m', '--mode',
+    p.add_argument('--mode', '-m',
                    choices=['normal', 'hexdump', 'raw', 'dts'],
                    default='normal',
                    help='Monitor mode')
 
-    p.add_argument('-s', '--single',
+    p.add_argument('--single', '-s',
                    type=int,
                    default=0,
-                   help='Single shot mode')
+                   metavar='N',
+                   help='Single shot mode: stops after printing N lines')
 
-    p.add_argument('-d', '--desc',
+    p.add_argument('--desc', '-d',
                    type=str,
                    default='dtsframe.json',
-                   help='Frame Descriptor (DTS)')
+                   metavar='FILE',
+                   help='(dts) Frame Descriptor: Use FILE as frame descriptor')
 
-    p.add_argument('-l', '--log',
+    p.add_argument('--log', '-l',
                    type=str,
                    default='',
-                   help='Log file output (DTS)')
+                   metavar='FILE',
+                   help='(dts) Log file output: Print log into FILE')
 
-    p.add_argument('-o', '--no-stdout',
+    p.add_argument('--no-stdout',
                    default=False,
                    action='store_true',
-                   help='Disable stdout printing (DTS)')
+                   help='(dts) Disable stdout printing')
 
-    p.add_argument('-n', '--frame-number',
+    p.add_argument('--frame-number', '-n',
                    default=False,
                    action='store_true',
-                   help='Print frame Number (DTS)')
+                   help='(dts) Print frame Number')
 
     args = p.parse_args()
 
