@@ -114,6 +114,7 @@ class MonitorRaw(RS485Monitor):
 class MonitorDTS(RS485Monitor):
     def __init__(self, a, *args, **kwargs):
         super(MonitorDTS, self).__init__(a, *args, **kwargs)
+
         self._hexdump = Hexdump()
         self._endianKeys = {'B': '>', 'L': '<'}
         self._typeKeys = {'h': 2, 'H': 2, 'i': 4, 'I': 4,
@@ -127,12 +128,16 @@ class MonitorDTS(RS485Monitor):
         self._frameDescFile = a.desc
         self._logFile = a.log
         self._logIO = None
+        self._noStdoutPrint = a.no_stdout
         self._displayFrameNb = a.frame_number
         self._dataSize = 0
         self._sofok = 0
         self._start = 0
         self._frameNb = 0
-        self._firstWrite = 1
+
+        if a.no_stdout and not len(a.log):
+            raise RS485MonitorException(
+                'init', 'Neither file logging or stdout printing enabled')
 
     def __del__(self):
         if len(self._logFile) and not self._logIO.closed:
@@ -264,6 +269,10 @@ class MonitorDTS(RS485Monitor):
         self._out.write('Monitor started : ')
         self._out.write('Baudrate=' + str(self._d.baudrate) + '[DTS mode]\t')
         self._out.writeln('<Datasize: {0} bytes>'.format(self._dataSize))
+        if self._noStdoutPrint:
+            self._out.writeln('Stdout printing disabled')
+        if isinstance(self._logIO, file):
+            self._out.writeln('Logging to file: \'' + self._logFile + '\'')
 
         while (1):
             self._readBuffer()
@@ -279,7 +288,8 @@ class MonitorDTS(RS485Monitor):
                 self._frameNb += 1
                 self._start = 0
                 data = self._decodeFrame(frame)
-                self._printDataToTerm(data)
+                if not self._noStdoutPrint:
+                    self._printDataToTerm(data)
                 if len(self._logFile):
                     self._printDataToFile(data)
 
@@ -309,6 +319,10 @@ def main():
                    type=str,
                    default='',
                    help='Log file output (DTS)')
+    p.add_argument('-o', '--no-stdout',
+                   default=False,
+                   action='store_true',
+                   help='Disable stdout printing (DTS)')
     p.add_argument('-n', '--frame-number',
                    default=False,
                    action='store_true',
