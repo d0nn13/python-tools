@@ -172,19 +172,16 @@ class MonitorDTS(RS485Monitor):
                                         'Data size is not even')
 
     def _readBuffer(self):
-        if len(self._buffer) >= (self._dataSize + len(self._sof)):
-            return
-        else:
+        while len(self._buffer) < (self._dataSize + len(self._sof)):
             buf = self._d.read(256)
             '''
             buf = ''.join(self._sof) + '\x10\x00\x10\x00\x20\x00\x00\x00'
-            buf += '\x00\x00\x00\x42\x00\x00\x00\x00\x00\x00\x50\x40'
+            buf += '\x00\x00\x80\x41\x00\x00\x00\x00\x00\x00\x40\x40'
             sleep(.03)
             '''
             for c in buf:
                 if len(c):
                     self._buffer.append(c)
-        self._readBuffer()
 
     def _getSOF(self):
         if (self._sofok >= len(self._sof)):
@@ -241,7 +238,7 @@ class MonitorDTS(RS485Monitor):
         self._loadFrameDesc()
         system('clear')
         self._out.write('Monitor started : ')
-        self._out.write('Baudrate=' + self._d.baudrate + '[DTS mode]\t')
+        self._out.write('Baudrate=' + str(self._d.baudrate) + '[DTS mode]\t')
         self._out.writeln('<Datasize: {0} bytes>'.format(self._dataSize))
 
         while (1):
