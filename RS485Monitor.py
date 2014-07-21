@@ -307,22 +307,27 @@ def main():
                    choices=['normal', 'hexdump', 'raw', 'dts'],
                    default='normal',
                    help='Monitor mode')
+
     p.add_argument('-s', '--single',
                    type=int,
                    default=0,
                    help='Single shot mode')
+
     p.add_argument('-d', '--desc',
                    type=str,
                    default='dtsframe.json',
                    help='Frame Descriptor (DTS)')
+
     p.add_argument('-l', '--log',
                    type=str,
                    default='',
                    help='Log file output (DTS)')
+
     p.add_argument('-o', '--no-stdout',
                    default=False,
                    action='store_true',
                    help='Disable stdout printing (DTS)')
+
     p.add_argument('-n', '--frame-number',
                    default=False,
                    action='store_true',
