@@ -44,9 +44,15 @@ class RS485Monitor(object):
             raise FtdiError('could not start FTDI Device "' + e.args[0] + '"')
 
     def __del__(self):
+        try:
+            self._d.flush()
+        except:
+            print 'Destroy failed'
+        try:
+            self._d.close()
+        except:
+            print 'Destroy failed'
         print normColor + '\nExiting monitor'
-        self._d.flush()
-        self._d.close()
 
     @abc.abstractmethod
     def run(self):
