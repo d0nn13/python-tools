@@ -162,10 +162,10 @@ class MonitorDTS(RS485Monitor):
                 raise RS485MonitorException('loadFrameDesc',
                                             'Unrecognized item type')
 
-            self._decoder += item.values()[0]
+            self._decoder += item.values()[0].encode('ascii')
             self._dataSize += self._typeKeys[item.values()[0]]
             if (item.values()[0] != 'x'):
-                self._labels.append(item.keys()[0])
+                self._labels.append(item.keys()[0].encode('ascii'))
 
         if self._dataSize % 2:
             raise RS485MonitorException('loadFrameDesc',
