@@ -2,7 +2,7 @@
 from lib.UnbufferedStreamWrapper import UnbufferedStreamWrapper
 from lib.Hexdump import Hexdump
 from pylibftdi import Device, FtdiError
-from sys import stdout, exit
+from sys import stdout
 from os import system, path
 from time import sleep
 from struct import unpack
