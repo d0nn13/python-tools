@@ -233,8 +233,8 @@ class MonitorDTS(RS485Monitor):
 
     def _decodeFrame(self, frame):
         if len(frame) != self._dataSize:
-            err = 'FATAL: Got ' + len(frame) + 'bytes instead of '
-            err += self._dataSize + '. Check JSON config file and/or FW!'
+            err = 'FATAL: Got ' + str(len(frame)) + ' bytes instead of '
+            err += str(self._dataSize) + '. Check JSON config file and/or FW!'
             raise RS485MonitorException('decodeFrame', err)
         values = unpack(self._decoder, frame)
         return ([self._labels, values])
