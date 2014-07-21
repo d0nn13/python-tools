@@ -153,7 +153,7 @@ class MonitorDTS(RS485Monitor):
             self._initLogFile()
         system('clear')
         self._out.write('Monitor started : ')
-        self._out.write('Baudrate=' + str(self._d.baudrate) + '[DTS mode]\t')
+        self._out.write('Baudrate=' + str(self._d.baudrate) + ' [DTS mode]\t')
         self._out.writeln('<Datasize: {0} bytes>'.format(self._dataSize))
         self._out.writeln('Using struct descriptor file : \'' +
                           self._structDescFile + '\'')
