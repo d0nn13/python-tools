@@ -60,7 +60,7 @@ class MonitorNormal(RS485Monitor):
     def run(self):
         system('clear')
         self._out.write('Monitor started : ')
-        self._out.writeln('Baudrate=' + self._d.baudrate + ' [Normal mode]')
+        self._out.writeln('Baudrate=' + str(self._d.baudrate) + ' [Normal mode]')
 
         while (1):
             buf = self._d.read(256)
@@ -79,7 +79,7 @@ class MonitorHexdump(RS485Monitor):
     def run(self):
         system('clear')
         self._out.write('Monitor started : ')
-        self._out.writeln('Baudrate=' + self._d.baudrate + ' [Hexdump mode]')
+        self._out.writeln('Baudrate=' + str(self._d.baudrate) + ' [Hexdump mode]')
 
         while (1):
             buf = self._d.read(256)
@@ -97,7 +97,7 @@ class MonitorRaw(RS485Monitor):
     def run(self):
         system('clear')
         self._out.write('Monitor started : ')
-        self._out.writeln('Baudrate=' + self._d.baudrate + ' [Raw mode]')
+        self._out.writeln('Baudrate=' + str(self._d.baudrate) + ' [Raw mode]')
 
         while (1):
             buf = self._d.read(2)
