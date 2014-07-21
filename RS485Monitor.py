@@ -277,7 +277,7 @@ class MonitorDTS(RS485Monitor):
 
         for v in data[1]:
             values.append(str(v))
-        self._logIO.write('  ' + ', '.join(values))
+        self._logIO.write('  ' + str(self._frameNb) + ', ' + ', '.join(values))
         self._logIO.write('\n')
 
     def run(self):
