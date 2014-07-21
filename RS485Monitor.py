@@ -3,7 +3,7 @@ from lib.UnbufferedStreamWrapper import UnbufferedStreamWrapper
 from lib.Hexdump import Hexdump
 from pylibftdi import Device, FtdiError
 from sys import stdout, exit
-from os import system
+from os import system, path
 from time import sleep
 from struct import unpack
 import abc
@@ -42,6 +42,11 @@ class RS485Monitor(object):
             self._d.flush()
         except FtdiError as e:
             raise FtdiError('could not start FTDI Device "' + e.args[0] + '"')
+
+    def __del__(self):
+        print normColor + '\nExiting monitor'
+        self._d.flush()
+        self._d.close()
 
     @abc.abstractmethod
     def run(self):
@@ -121,12 +126,19 @@ class MonitorDTS(RS485Monitor):
         self._labels = []
         self._frameDescFile = a.desc
         self._logFile = a.log
+        self._logIO = None
         self._displayFrameNb = a.frame_number
         self._dataSize = 0
         self._sofok = 0
         self._start = 0
         self._frameNb = 0
         self._firstWrite = 1
+
+    def __del__(self):
+        if len(self._logFile) and not self._logIO.closed:
+            print '\nClosing log file'
+            self._logIO.close()
+        super(MonitorDTS, self).__del__()
 
     def _loadFrameDesc(self):
         with open(self._frameDescFile) as f:
@@ -171,6 +183,21 @@ class MonitorDTS(RS485Monitor):
             raise RS485MonitorException('loadFrameDesc',
                                         'Data size is not even')
 
+    def _initLogFile(self):
+        mode = 'a' if path.exists(self._logFile) else 'w'
+        self._logIO = open(self._logFile, mode)
+        if not isinstance(self._logIO, file) or \
+            not mode == self._logIO.mode or \
+                self._logIO.closed:
+            raise RS485MonitorException('initLogFile', 'Couldn\'t open file')
+
+        if mode == 'a':
+            self._logIO.write('\n\n\n')
+            for i in range(79):
+                self._logIO.write('=')
+            self._logIO.write('\n')
+        self._logIO.write('# ' + ', '.join(self._labels) + '\n')
+
     def _readBuffer(self):
         while len(self._buffer) < (self._dataSize + len(self._sof)):
             buf = self._d.read(256)
@@ -207,7 +234,7 @@ class MonitorDTS(RS485Monitor):
         values = unpack(self._decoder, frame)
         return ([self._labels, values])
 
-    def _printData(self, data):
+    def _printDataToTerm(self, data):
         self._out.write('| ')
         for i in range(len(data[0])):
             out = '{lC}[{l}]{lc}: {vC}{v:>15}{vc} | '.format(lC=lablColor,
@@ -221,21 +248,18 @@ class MonitorDTS(RS485Monitor):
             self._out.write('{} '.format(self._frameNb))
         self._out.write('\n')
 
-    def _writeFile(self, data):
+    def _printDataToFile(self, data):
         values = []
 
-        if self._firstWrite:
-            self._firstWrite = 0
-            with open(self._logFile, 'w') as f:
-                f.write('# ' + ', '.join(data[0]) + '\n')
-        else:
-            for v in data[1]:
-                values.append(str(v))
-            with open(self._logFile, 'a') as f:
-                f.write('  ' + ', '.join(values) + '\n')
+        for v in data[1]:
+            values.append(str(v))
+        self._logIO.write('  ' + ', '.join(values))
+        self._logIO.write('\n')
 
     def run(self):
         self._loadFrameDesc()
+        if len(self._logFile):
+            self._initLogFile()
         system('clear')
         self._out.write('Monitor started : ')
         self._out.write('Baudrate=' + str(self._d.baudrate) + '[DTS mode]\t')
@@ -255,9 +279,9 @@ class MonitorDTS(RS485Monitor):
                 self._frameNb += 1
                 self._start = 0
                 data = self._decodeFrame(frame)
-                self._printData(data)
+                self._printDataToTerm(data)
                 if len(self._logFile):
-                    self._writeFile(data)
+                    self._printDataToFile(data)
 
 
 def main():
@@ -302,7 +326,6 @@ def main():
     except KeyboardInterrupt:
         pass
 
-    print normColor + '\r\nExiting monitor'
 
 if __name__ == "__main__":
     main()
