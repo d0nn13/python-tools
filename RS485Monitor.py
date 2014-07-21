@@ -190,7 +190,7 @@ class MonitorDTS(RS485Monitor):
 
     def _initLogFile(self):
         mode = 'a' if path.exists(self._logFile) else 'w'
-        self._logIO = open(self._logFile, mode)
+        self._logIO = open(self._logFile, mode, 1)
         if not isinstance(self._logIO, file) or \
             not mode == self._logIO.mode or \
                 self._logIO.closed:
