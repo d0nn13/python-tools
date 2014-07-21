@@ -324,7 +324,7 @@ def main():
 
     p.add_argument('--desc', '-d',
                    type=str,
-                   default='dtsframe.json',
+                   default='defaultstruct.json',
                    metavar='FILE',
                    help='(dts) Struct Descriptor: \
                        Use FILE as struct descriptor')
