@@ -138,8 +138,8 @@ class MonitorDTS(RS485Monitor):
 
         if not type(self._frameDesc) == dict or \
             not len(self._frameDesc) == 2 or \
-                not 'endianess' in self._frameDesc.keys() or \
-                    not 'items' in self._frameDesc.keys():
+                'endianess' not in self._frameDesc.keys() or \
+                'items' not in self._frameDesc.keys():
             raise RS485MonitorException('loadFrameDesc',
                                         'Invalid frame descriptor')
 
