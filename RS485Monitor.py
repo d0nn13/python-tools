@@ -21,7 +21,7 @@ class RS485MonitorException(Exception):
         self.msg = msg
 
     def __str__(self):
-        return repr(self.value)
+        return repr(self.msg)
 
 
 class RS485Monitor(object):
