@@ -226,7 +226,7 @@ class MonitorDTS(RS485Monitor):
             self._logIO.write('\n')
         self._logIO.write(
             '# Using struct descriptor: \'' + self._structDescFile + '\'\n')
-        self._logIO.write('# ' + ', '.join(self._labels) + '\n')
+        self._logIO.write('# Frame, ' + ', '.join(self._labels) + '\n')
 
     def _readBuffer(self):
         while len(self._buffer) < (self._dataSize + len(self._sof)):
@@ -267,7 +267,7 @@ class MonitorDTS(RS485Monitor):
     def _printDataToTerm(self, data):
         self._out.write('| ')
         for i in range(len(data[0])):
-            out = '{lC}[{l}]{lc}: {vC}{v:>15}{vc} | '.format(lC=lablColor,
+            out = '{lC}[{l}]{lc}: {vC}{v:>19}{vc} | '.format(lC=lablColor,
                                                              l=data[0][i],
                                                              lc=normColor,
                                                              vC=valuColor,
