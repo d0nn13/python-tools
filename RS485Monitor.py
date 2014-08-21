@@ -241,20 +241,20 @@ class MonitorDTS(RS485Monitor):
                     self._buffer.append(c)
 
     def _getSOF(self):
-        if (self._sofok >= len(self._sof)):
-            if len(self._buffer) < (self._dataSize + len(self._sof)):
-                self._readBuffer()
-            self._sofok = 0
-            self._start = 1
-            return
+        while (not self._start):
+            if (self._sofok >= len(self._sof)):
+                if len(self._buffer) < (self._dataSize + len(self._sof)):
+                    self._readBuffer()
+                self._sofok = 0
+                self._start = 1
+                return
 
-        if (self._start or len(self._buffer) < 4):
-            self._readBuffer()
-        if (self._buffer.pop(0) == self._sof[self._sofok]):
-            self._sofok += 1
-        else:
-            self._sofok = 0
-            self._getSOF()
+            if (self._start or len(self._buffer) < 4):
+                self._readBuffer()
+            if (self._buffer.pop(0) == self._sof[self._sofok]):
+                self._sofok += 1
+            else:
+                self._sofok = 0
 
     def _decodeFrame(self, frame):
         if len(frame) != self._dataSize:
