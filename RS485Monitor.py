@@ -142,6 +142,7 @@ class MonitorDTS(RS485Monitor):
         self._sofok = 0
         self._start = 0
         self._frameNb = 0
+        self._lineSep = '\n' if a.newline else '\r'
 
         if a.no_stdout and not len(a.log):
             raise RS485MonitorException(
@@ -276,7 +277,7 @@ class MonitorDTS(RS485Monitor):
             self._out.write(out)
         if self._displayFrameNb:
             self._out.write('{} '.format(self._frameNb))
-        self._out.write('\n')
+        self._out.write(self._lineSep)
 
     def _printDataToFile(self, data):
         values = []
@@ -350,6 +351,11 @@ def main():
                    default=False,
                    action='store_true',
                    help='(dts) Print frame Number')
+
+    p.add_argument('--newline', '-r',
+                   default=False,
+                   action='store_true',
+                   help='(dts) One line monitoring')
 
     args = p.parse_args()
 
