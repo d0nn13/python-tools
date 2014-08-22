@@ -2,19 +2,19 @@
     "endianess": "L",
     "items": [
         {
-            "sInt16": "h"
+            "sInt16": "sInt16"
         },
         {
-            "uInt16": "H"
+            "uInt16": "uInt16"
         },
         {
-            "sInt32": "i"
+            "sInt32": "sInt32"
         },
         {
-            "uInt32": "I"
+            "uInt32": "uInt32"
         },
         {
-            "float": "f"
+            "float": "float"
         }
     ]
 }

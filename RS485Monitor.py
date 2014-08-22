@@ -125,8 +125,17 @@ class MonitorDTS(RS485Monitor):
 
         self._hexdump = Hexdump()
         self._endianKeys = {'B': '>', 'L': '<'}
-        self._typeKeys = {'h': 2, 'H': 2, 'i': 4, 'I': 4,
-                          'q': 8, 'Q': 8, 'f': 4, 'd': 8, 'x': 1}
+        self._typeKeys = {
+            "sInt16": {"key": 'h', "size": 2},
+            "uInt16": {"key": 'H', "size": 2},
+            "sInt32": {"key": 'i', "size": 4},
+            "uInt32": {"key": 'I', "size": 4},
+            "sInt64": {"key": 'q', "size": 8},
+            "uInt64": {"key": 'Q', "size": 8},
+            "float" : {"key": 'f', "size": 4},
+            "double": {"key": 'd', "size": 8},
+            "byte"  : {"key": 'x', "size": 1}
+            }
         self._sof = ['\x73', '\x95', '\xDB', '\x42']
 
         self._buffer = []
@@ -203,9 +212,10 @@ class MonitorDTS(RS485Monitor):
                 raise RS485MonitorException('loadFrameDesc',
                                             'Unrecognized item type')
 
-            self._decoder += item.values()[0].encode('ascii')
-            self._dataSize += self._typeKeys[item.values()[0]]
-            if (item.values()[0] != 'x'):
+            typeStr = item.values()[0].encode('ascii')
+            self._decoder += self._typeKeys[typeStr]["key"]
+            self._dataSize += self._typeKeys[typeStr]["size"]
+            if (item.values()[0] != "byte"):
                 self._labels.append(item.keys()[0].encode('ascii'))
 
         if self._dataSize % 2:
