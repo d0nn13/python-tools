@@ -1,4 +1,14 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+Created on 2014/05/05
+Last Update on 2014/09/02
+
+Author: Samir Ahamada
+Contact: sahamada@aldebaran.com
+"""
+
 from lib.UnbufferedStreamWrapper import UnbufferedStreamWrapper
 from lib.Hexdump import Hexdump
 from pylibftdi import Device, FtdiError
