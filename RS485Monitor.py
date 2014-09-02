@@ -246,8 +246,8 @@ class MonitorDTS(RS485Monitor):
                 self._logIO.write('#')
             self._logIO.write('\n')
         self._logIO.write(
-            '# Using struct descriptor: \'' + self._structDescFile + '\'\n')
-        self._logIO.write('# Frame, ' + ', '.join(self._labels) + '\n')
+            '# Log generated with DTS logger and using struct descriptor: \'' + self._structDescFile + '\'\n')
+        self._logIO.write('Frame,' + ','.join(self._labels) + '\n')
 
     def _readBuffer(self):
         while len(self._buffer) < (self._dataSize + len(self._sof)):
@@ -304,8 +304,7 @@ class MonitorDTS(RS485Monitor):
 
         for v in data[1]:
             values.append(str(v))
-        self._logIO.write('  ' + str(self._frameNb) + ', ' + ', '.join(values))
-        self._logIO.write('\n')
+        self._logIO.write(str(self._frameNb) + ',' + ','.join(values) + '\n')
 
     def run(self):
         self._initDts()
