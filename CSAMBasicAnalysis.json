@@ -1,0 +1,18 @@
+{
+	"endianess": "L",
+	"items":
+	[
+		{
+			"motorPosEncoderSph": "uInt16"
+		},
+		{
+			"jointPosEncoderSph": "uInt16"
+		},
+		{
+			"motorPosEncoderCyl": "uInt16"
+		},
+		{
+			"jointPosEncoderCyl": "uInt16"
+		}
+	]
+}
