@@ -14,15 +14,8 @@ from lib.Hexdump import Hexdump
 from pylibftdi import Device, FtdiError
 from sys import stdout
 from os import system, path
-from time import sleep
-from struct import unpack
 import abc
 import argparse
-import json
-
-normColor = '\x1b[0;0m'
-lablColor = '\x1b[33m'
-valuColor = '\x1b[1;37m'
 
 
 class RS485MonitorException(Exception):
@@ -129,216 +122,16 @@ class MonitorRaw(RS485Monitor):
                 raise KeyboardInterrupt
 
 
-class MonitorDTS(RS485Monitor):
-    def __init__(self, a, *args, **kwargs):
-        super(MonitorDTS, self).__init__(a, *args, **kwargs)
-
-        self._hexdump = Hexdump()
-        self._endianKeys = {'B': '>', 'L': '<'}
-        self._typeKeys = {
-            "sInt16": {"key": 'h', "size": 2},
-            "uInt16": {"key": 'H', "size": 2},
-            "sInt32": {"key": 'i', "size": 4},
-            "uInt32": {"key": 'I', "size": 4},
-            "sInt64": {"key": 'q', "size": 8},
-            "uInt64": {"key": 'Q', "size": 8},
-            "float" : {"key": 'f', "size": 4},
-            "double": {"key": 'd', "size": 8},
-            "byte"  : {"key": 'x', "size": 1}
-            }
-        self._sof = ['\x73', '\x95', '\xDB', '\x42']
-
-        self._buffer = []
-        self._structDesc = {}
-        self._decoder = ''
-        self._labels = []
-        self._structDescFile = a.desc
-        self._logFile = a.log
-        self._logIO = None
-        self._noStdoutPrint = a.no_stdout
-        self._displayFrameNb = a.frame_number
-        self._dataSize = 0
-        self._sofok = 0
-        self._start = 0
-        self._frameNb = 0
-        self._lineSep = '\n' if a.newline else '\r'
-
-        if a.no_stdout and not len(a.log):
-            raise RS485MonitorException(
-                'init', 'Neither file logging or stdout printing enabled')
-
-    def __del__(self):
-        if len(self._logFile) and not self._logIO.closed:
-            print '\nClosing log file'
-            self._logIO.close()
-        super(MonitorDTS, self).__del__()
-
-    def _initDts(self):
-        self._loadStructDesc()
-        if len(self._logFile):
-            self._initLogFile()
-        system('clear')
-        self._out.write('Monitor started : ')
-        self._out.write('Baudrate=' + str(self._d.baudrate) + ' [DTS mode]\t')
-        self._out.writeln('<Datasize: {0} bytes>'.format(self._dataSize))
-        self._out.writeln('Using struct descriptor file : \'' +
-                          self._structDescFile + '\'')
-        if self._noStdoutPrint:
-            self._out.writeln('Stdout printing disabled')
-        if isinstance(self._logIO, file):
-            self._out.writeln('Logging to file: \'' + self._logFile + '\'')
-
-    def _loadStructDesc(self):
-        with open(self._structDescFile) as f:
-            try:
-                self._structDesc = json.loads(f.read())
-            except ValueError as e:
-                raise RS485MonitorException('loadStructDesc:json.loads',
-                                            e.args[0])
-
-        if not type(self._structDesc) == dict or \
-            not len(self._structDesc) == 2 or \
-                'endianess' not in self._structDesc.keys() or \
-                'items' not in self._structDesc.keys():
-            raise RS485MonitorException('loadFrameDesc',
-                                        'Invalid frame descriptor')
-
-        if not self._structDesc['endianess'] in self._endianKeys:
-            raise RS485MonitorException('loadFrameDesc',
-                                        'Unrecognized endianess')
-        self._decoder = self._endianKeys[self._structDesc['endianess']]
-
-        if type(self._structDesc['items']) != list:
-            raise RS485MonitorException('loadFrameDesc',
-                                        'Unrecognized item list format')
-
-        for item in self._structDesc['items']:
-            if type(item) != dict or \
-                    len(item.values()) != 1 or len(item.keys()) != 1:
-                raise RS485MonitorException('loadFrameDesc',
-                                            'Unrecognized item size')
-
-            if not item.values()[0] in self._typeKeys:
-                raise RS485MonitorException('loadFrameDesc',
-                                            'Unrecognized item type')
-
-            typeStr = item.values()[0].encode('ascii')
-            self._decoder += self._typeKeys[typeStr]["key"]
-            self._dataSize += self._typeKeys[typeStr]["size"]
-            if (item.values()[0] != "byte"):
-                self._labels.append(item.keys()[0].encode('ascii'))
-
-        if self._dataSize % 2:
-            raise RS485MonitorException('loadFrameDesc',
-                                        'Data size is not even')
-
-    def _initLogFile(self):
-        mode = 'a' if path.exists(self._logFile) else 'w'
-        self._logIO = open(self._logFile, mode, 1)
-        if not isinstance(self._logIO, file) or \
-            not mode == self._logIO.mode or \
-                self._logIO.closed:
-            raise RS485MonitorException('initLogFile', 'Couldn\'t open file')
-
-        if mode == 'a':
-            self._logIO.write('\n\n\n')
-            for i in range(79):
-                self._logIO.write('#')
-            self._logIO.write('\n')
-        self._logIO.write(
-            '# Log generated with DTS logger and using struct descriptor: \'' + self._structDescFile + '\'\n')
-        self._logIO.write('Frame,' + ','.join(self._labels) + '\n')
-
-    def _readBuffer(self):
-        while len(self._buffer) < (self._dataSize + len(self._sof)):
-            buf = self._d.read(256)
-            '''
-            buf = ''.join(self._sof) + '\x10\x00\x10\x00\x20\x00\x00\x00'
-            buf += '\x00\x00\x80\x41\x00\x00\x00\x00\x00\x00\x40\x40'
-            sleep(.03)
-            '''
-            for c in buf:
-                if len(c):
-                    self._buffer.append(c)
-
-    def _getSOF(self):
-        while (not self._start):
-            if (self._sofok >= len(self._sof)):
-                if len(self._buffer) < (self._dataSize + len(self._sof)):
-                    self._readBuffer()
-                self._sofok = 0
-                self._start = 1
-                return
-
-            if (self._start or len(self._buffer) < 4):
-                self._readBuffer()
-            if (self._buffer.pop(0) == self._sof[self._sofok]):
-                self._sofok += 1
-            else:
-                self._sofok = 0
-
-    def _decodeFrame(self, frame):
-        if len(frame) != self._dataSize:
-            err = 'FATAL: Got ' + str(len(frame)) + ' bytes instead of '
-            err += str(self._dataSize) + '. Check JSON config file and/or FW!'
-            raise RS485MonitorException('decodeFrame', err)
-        values = unpack(self._decoder, frame)
-        return ([self._labels, values])
-
-    def _printDataToTerm(self, data):
-        self._out.write('| ')
-        for i in range(len(data[0])):
-            out = '{lC}[{l}]{lc}: {vC}{v:>19}{vc} | '.format(lC=lablColor,
-                                                             l=data[0][i],
-                                                             lc=normColor,
-                                                             vC=valuColor,
-                                                             v=data[1][i],
-                                                             vc=normColor)
-            self._out.write(out)
-        if self._displayFrameNb:
-            self._out.write('{} '.format(self._frameNb))
-        self._out.write(self._lineSep)
-
-    def _printDataToFile(self, data):
-        values = []
-
-        for v in data[1]:
-            values.append(str(v))
-        self._logIO.write(str(self._frameNb) + ',' + ','.join(values) + '\n')
-
-    def run(self):
-        self._initDts()
-        while (1):
-            self._readBuffer()
-            if not self._start:
-                self._getSOF()
-            c = 0
-            frame = ''
-            while (self._start):
-                frame += self._buffer.pop(0)
-                c += 1
-                if (c < self._dataSize):
-                    continue
-                self._frameNb += 1
-                self._start = 0
-                data = self._decodeFrame(frame)
-                if not self._noStdoutPrint:
-                    self._printDataToTerm(data)
-                if len(self._logFile):
-                    self._printDataToFile(data)
-
-
 def main():
     classDict = {
         'normal': globals()['MonitorNormal'],
         'hexdump': globals()['MonitorHexdump'],
-        'raw': globals()['MonitorRaw'],
-        'dts': globals()['MonitorDTS']
+        'raw': globals()['MonitorRaw']
     }
     p = argparse.ArgumentParser(prog='RS485Monitor.py',
                                 description='Monitor FTDI RS485 Rx.')
     p.add_argument('--mode', '-m',
-                   choices=['normal', 'hexdump', 'raw', 'dts'],
+                   choices=['normal', 'hexdump', 'raw'],
                    default='normal',
                    help='Monitor mode')
 
@@ -347,13 +140,6 @@ def main():
                    default=0,
                    metavar='N',
                    help='Single shot mode: stops after printing N lines')
-
-    p.add_argument('--desc', '-d',
-                   type=str,
-                   default='defaultstruct.json',
-                   metavar='FILE',
-                   help='(dts) Struct Descriptor: \
-                       Use FILE as struct descriptor')
 
     p.add_argument('--log', '-l',
                    type=str,
@@ -365,11 +151,6 @@ def main():
                    default=False,
                    action='store_true',
                    help='(dts) Disable stdout printing')
-
-    p.add_argument('--frame-number', '-n',
-                   default=False,
-                   action='store_true',
-                   help='(dts) Print frame Number')
 
     p.add_argument('--newline', '-r',
                    default=False,
