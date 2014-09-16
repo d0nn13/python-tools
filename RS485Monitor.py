@@ -9,9 +9,10 @@ Author: Samir Ahamada
 Contact: sahamada@aldebaran.com
 """
 
-from lib.UnbufferedStreamWrapper import UnbufferedStreamWrapper
-from lib.Hexdump import Hexdump
-from pylibftdi import Device, FtdiError
+from lib.Output import UnbufferedStreamWrapper
+from lib.Output import Hexdump
+from pylibftdi import Device
+from pylibftdi import FtdiError
 from sys import stdout
 from os import system, path
 import abc

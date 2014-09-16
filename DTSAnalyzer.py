@@ -8,8 +8,7 @@ Last Update on 2014/09/02
 Author: Samir Ahamada
 Contact: sahamada@aldebaran.com
 """
-
-from lib.UnbufferedStreamWrapper import UnbufferedStreamWrapper
+from lib.Output import UnbufferedStreamWrapper
 from pylibftdi import Device, FtdiError
 from sys import stdout
 from os import system, path
