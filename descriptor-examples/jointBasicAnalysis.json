@@ -1,0 +1,20 @@
+{
+    "endianess": "L",
+    "items": [
+        {
+            "consignePosInterpo": "sInt32"
+        },
+        {
+            "consigneSpd": "sInt32"
+        },
+        {
+            "encoderPos": "uInt16"
+        },
+        {
+            "current": "uInt16"
+        },
+        {
+            "pwm": "uInt16"
+        }
+    ]
+}

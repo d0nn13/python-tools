@@ -252,7 +252,7 @@ def main():
                                 description=descStr)
     p.add_argument('--desc', '-d',
                    type=str,
-                   default='defaultstruct.json',
+                   default='descriptor-examples/defaultstruct.json',
                    metavar='FILE',
                    help='(dts) Struct Descriptor: \
                        Use FILE as struct descriptor')
