@@ -17,14 +17,18 @@ from os import system, path
 import abc
 import argparse
 
+normColor = '\x1b[0;0m'
+lablColor = '\x1b[33m'
+valuColor = '\x1b[1;37m'
+
 
 class RS485MonitorException(Exception):
     def __init__(self, sender, msg):
-        self.sender = sender
-        self.msg = msg
+        self.__sender = sender
+        self.__msg = msg
 
     def __str__(self):
-        return repr(self.msg)
+        return repr(self.__msg)
 
 
 class RS485Monitor(object):
@@ -44,22 +48,21 @@ class RS485Monitor(object):
                                                    paritymode)
             self._d.flush()
         except FtdiError as e:
+            self._d = None
             raise FtdiError('could not start FTDI Device "' + e.args[0] + '"')
 
     def __del__(self):
         try:
-            self._d.flush()
-        except:
-            print 'Destroy failed'
-        try:
-            self._d.close()
+            if self._d:
+                self._d.flush()
+                self._d.close()
         except:
             print 'Destroy failed'
         print normColor + '\nExiting monitor'
 
     @abc.abstractmethod
     def run(self):
-        return
+        pass
 
 
 class MonitorNormal(RS485Monitor):
@@ -76,15 +79,15 @@ class MonitorNormal(RS485Monitor):
             buf = self._d.read(256)
             self._out.write(buf)
             if (self._single and len(buf)):
-                self._count += 1
-            if (self._single and (self._count >= self._single)):
+                self.__count += 1
+            if (self._single and (self.__count >= self._single)):
                 raise KeyboardInterrupt
 
 
 class MonitorHexdump(RS485Monitor):
     def __init__(self, a, *args, **kwargs):
         super(MonitorHexdump, self).__init__(a, *args, **kwargs)
-        self._hexdump = Hexdump()
+        self.__hexdump = Hexdump()
 
     def run(self):
         system('clear')
@@ -94,10 +97,10 @@ class MonitorHexdump(RS485Monitor):
 
         while (1):
             buf = self._d.read(256)
-            self._hexdump.write(buf)
+            self.__hexdump.write(buf)
             if (self._single and len(buf)):
-                self._count += 1
-            if (self._single and (self._count >= self._single)):
+                self.__count += 1
+            if (self._single and (self.__count >= self._single)):
                 raise KeyboardInterrupt
 
 
@@ -117,8 +120,8 @@ class MonitorRaw(RS485Monitor):
                     self._out.write(format(ord(c), 'x'))
                 self._out.write(':')
             if (self._single and len(buf)):
-                self._count += 1
-            if (self._single and (self._count >= self._single)):
+                self.__count += 1
+            if (self._single and (self.__count >= self._single)):
                 raise KeyboardInterrupt
 
 
