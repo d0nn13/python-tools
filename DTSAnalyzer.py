@@ -9,7 +9,8 @@ Author: Samir Ahamada
 Contact: sahamada@aldebaran.com
 """
 from lib.Output import UnbufferedStreamWrapper
-from pylibftdi import Device, FtdiError
+from pylibftdi import Device
+from pylibftdi import FtdiError
 from sys import stdout
 from os import system, path
 from time import sleep
