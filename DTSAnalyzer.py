@@ -3,7 +3,7 @@
 
 """
 Created on 2014/05/05
-Last Update on 2014/09/02
+Last Update on 2014/09/17
 
 Author: Samir Ahamada
 Contact: sahamada@aldebaran.com
@@ -196,11 +196,23 @@ class DTSAnalyzer(object):
             else:
                 self.__sofok = 0
 
-    def __decodeFrame(self, frame):
-        if len(frame) != self.__dataSize:
-            err = 'FATAL: Got ' + str(len(frame)) + ' bytes instead of '
+    def __checkCRC(self, frame, size, crcIn):
+        crcOut = 0
+        c = 0
+        if len(frame[4:]) != self.__dataSize:
+            err = 'FATAL: Got ' + str(len(frame[4:])) + ' bytes instead of '
             err += str(self.__dataSize) + '. Check JSON config file and/or FW!'
             raise DTSAnalyzerException('decodeFrame', err)
+        for j in range(size):
+            crcOut ^= ord(frame[c]) << 8
+            for i in range(8):
+                if (crcOut & 0x8000):
+                    crcOut ^= (0x1070 << 3)
+                crcOut <<= 1
+            c += 1
+        return ((crcOut >> 8) == ord(crcIn))
+
+    def __decodeFrame(self, frame):
         values = unpack(self.__decoder, frame)
         return ([self.__labels, values])
 
@@ -226,20 +238,27 @@ class DTSAnalyzer(object):
         self.__logIO.write(str(self.__frameNb) + ',' + ','.join(values) + '\n')
 
     def run(self):
+        crcFailNb = 0
         while (1):
             self.__readBuffer()
             if not self.__start:
                 self.__getSOF()
             c = 0
-            frame = ''
+            frame = "".join(self.__sof)
             while (self.__start):
                 frame += self.__buffer.pop(0)
                 c += 1
                 if (c < self.__dataSize):
                     continue
+                crc = self.__buffer.pop(0)
                 self.__frameNb += 1
                 self.__start = 0
-                data = self.__decodeFrame(frame)
+                if not self.__checkCRC(frame, len(frame), crc):
+                    crcFailNb += 1;
+                    if (crcFailNb >= 10):
+                        raise DTSAnalyzerException("run",
+                                                   "Too much CRC errors")
+                data = self.__decodeFrame(frame[4:])
                 if not self.__noStdoutPrint:
                     self.__printDataToTerm(data)
                 if len(self.__logFile):
